@@ -1,10 +1,12 @@
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Text.I18n
 -- Copyright   :  (c) Eugene Grigoriev, 2008
 -- License     :  BSD3
--- 
+--
 -- Maintainer  :  eugene.grigoriev@gmail.com
 -- Stability   :  experimental
 -- Portability :  portable
@@ -16,29 +18,36 @@
 --
 -----------------------------------------------------------------------------
 module Text.I18n (
-        -- * Type Declarations
-        Msgid(..), Msgstr, Locale(..), Context, I18n, L10n,
-        -- * Internationalization Monad Functions
-        gettext, localize, withContext, withLocale
-    ) where
+    -- * Type Declarations
+    Msgid(..)
+  , Context
+  , I18n
+  , L10n
+  , Locale(..)
+  , Msgstr
+    -- * Internationalization Monad Functions
+  , gettext
+  , localize
+  , withContext
+  , withLocale
+) where
 
-import Control.Monad.Reader
-import Control.Monad.Trans
-import Control.Monad.Identity
-import Data.Maybe
-import Text.I18n.Printf
+import           Control.Monad.Identity
+import           Control.Monad.Reader
 import qualified Data.Map as Map
+import           Data.Maybe
+import qualified Data.Text as T
 
 -------------------------------------------------------------------------------
 -- Type declarations
 -------------------------------------------------------------------------------
-newtype Msgid = Msgid String deriving (Show,Eq,Ord)
+newtype Msgid = Msgid T.Text deriving (Show, Eq, Ord)
 
-type Msgstr = String
+type Msgstr = T.Text
 
-newtype Locale = Locale String deriving (Show,Eq,Ord)
+newtype Locale = Locale T.Text deriving (Show, Eq, Ord)
 
-type Context = String
+type Context = T.Text
 
 -- | The Internationalization monad built using monad transformers.
 type I18n a = ReaderT (Locale, L10n, Maybe Context) Identity a
@@ -49,50 +58,49 @@ type L10n = Map.Map Locale
                              (Map.Map Msgid
                                       [Msgstr]))
 
-instance PrintfType (I18n String) where
-    spr fmts args = return (uprintf fmts (reverse args))
-
 -------------------------------------------------------------------------------
 -- I18N Monad functions
 -------------------------------------------------------------------------------
 {-|
     The top level localization function.
 
-    > import Text.I18n.Po
-    > import Prelude hiding (putStr,putStrLn)
+    > {-# LANGUAGE OverloadedStrings #-}
+    >
+    > import qualified Data.Text.IO as TIO
+    > import           Text.I18n.Po
     >
     > main = do
     >     (l10n,errors) <- getL10n "dir/to/po" -- directory containing PO files
-    >     putStrLn $ localize l10n (Locale "en") (example "Joe")
+    >     TIO.putStrLn $ localize l10n (Locale "en") (example "Joe")
 -}
 localize :: L10n    -- ^ Structure containing localization data
          -> Locale  -- ^ Locale to use
          -> I18n a  -- ^ Inernationalized expression
          -> a       -- ^ Localized expression
-localize l10n loc expression = runIdentity $ runReaderT expression (loc,l10n,Nothing)
+localize l10n loc expression = runIdentity $ runReaderT expression (loc, l10n, Nothing)
 
 {-|
     The heart of I18n monad. Based on 'Text.Printf.printf'.
 
-    > example :: String -> I18n String
+    > example :: T.Text -> I18n T.Text
     > example name = do
     >     hello <- gettext "Hello, %s!"
     >     return (hello name)
 -}
-gettext :: PrintfType a => String -> I18n a
+gettext :: T.Text -> I18n T.Text
 gettext msgid = do
     (loc, l10n, ctxt) <- ask
     case localizeMsgid l10n loc ctxt (Msgid msgid) of
-        Just msgstr -> return (printf msgstr)
+        Just msgstr -> return msgstr
         Nothing     -> case ctxt of
                             Just _  -> withContext Nothing (gettext msgid)
-                            Nothing -> return (printf msgid)
+                            Nothing -> return msgid
 
 {-|
     Sets a local 'Context' for an internationalized expression.
     If there is no translation, then no context version is tried.
 
-    > example2 :: String -> I18n String
+    > example2 :: T.Text -> I18n T.Text
     > example2 = withContext (Just "test") . example
 -}
 withContext :: Maybe Context -- ^ Context to use
@@ -106,7 +114,7 @@ withContext ctxt expression = do
 {-|
     Sets a local 'Locale' for an internationalized expression.
 
-    > example3 :: String -> I18n String
+    > example3 :: T.Text -> I18n T.Text
     > example3 = withLocale (Locale "ru") . example2
 -}
 withLocale :: Locale    -- ^ Locale to use
@@ -120,9 +128,9 @@ withLocale loc expression = do
     local (const (loc, l10n, ctxt))
           expression
 
-localizeMsgid :: L10n -> Locale -> Maybe Context -> Msgid -> Maybe String
+localizeMsgid :: L10n -> Locale -> Maybe Context -> Msgid -> Maybe T.Text
 localizeMsgid l10n loc ctxt msgid = do
-    local      <- Map.lookup loc  l10n
-    contextual <- Map.lookup ctxt local
+    local'     <- Map.lookup loc l10n
+    contextual <- Map.lookup ctxt local'
     msgstrs    <- Map.lookup msgid contextual
     listToMaybe msgstrs

@@ -1,9 +1,12 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Text.I18n.Po
 -- Copyright   :  (c) Eugene Grigoriev, 2008
 -- License     :  BSD3
--- 
+--
 -- Maintainer  :  eugene.grigoriev@gmail.com
 -- Stability   :  experimental
 -- Portability :  portable
@@ -14,92 +17,128 @@
 --  Plural forms are not yet implemented.
 --
 --  modules Text.I18n, Control.Monad.Trans, and function putStrLn and putStr
---  from System.IO.UTF8 are exported for convenience.
---
--- > import Prelude hiding (putStr,putStrLn)
+--  from Prelude are exported for convenience.
 --
 -----------------------------------------------------------------------------
 module Text.I18n.Po (
-        -- * Type Declarations
-        Msgid(..), Msgstr, Locale(..), Context, I18n, L10n,
-        -- * PO parsing
-        getL10n,
-        -- * I18n Monad Functions
-        localize, gettext, withContext, withLocale,
-        -- * UTF-8 Output Functions
-        Utf8.putStrLn, Utf8.putStr,
-        module Control.Monad.Trans
-    ) where
+    -- * Type Declarations
+    Msgid(..)
+  , Msgstr
+  , Locale(..)
+  , Context
+  , I18n
+  , L10n
+    -- * PO parsing
+  , getL10n
+    -- * I18n Monad Functions
+  , localize
+  , gettext
+  , withContext
+  , withLocale
+) where
 
-import Text.I18n
-import Text.ParserCombinators.Parsec
-import qualified Text.ParserCombinators.Parsec.Token as P
-import Text.ParserCombinators.Parsec.Language
-import Data.List
+import           Control.Arrow ((&&&), second)
+import           Data.Either (partitionEithers)
+import           Data.Functor.Identity (Identity)
+import           Data.List (foldl', intercalate, isSuffixOf)
 import qualified Data.Map as Map
-import Data.Monoid
-import Control.Monad.Trans
-import Control.Arrow
-import System.Directory
-import System.FilePath
-import qualified System.IO.UTF8 as Utf8
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import           System.Directory (getDirectoryContents)
+import           System.FilePath (pathSeparator)
+import           Text.I18n
+import           Text.Parsec
+import           Text.Parsec.Text
+--import           Text.ParserCombinators.Parsec
+import           Text.ParserCombinators.Parsec.Language
+import qualified Text.ParserCombinators.Parsec.Token as P
 
 -------------------------------------------------------------------------------
 -- Type declarations
 -------------------------------------------------------------------------------
+
+-- | Message delcaration.
 data MsgDec = MsgDec (Maybe Context) Msgid [Msgstr]
+
+-- | Mapping from identifiers to translations.
+type TranslationMap = Map.Map Msgid [Msgstr]
+
+-- | Mapping from a contexts to translation mappings.
+type CtxMap = Map.Map (Maybe Context) TranslationMap
 
 -------------------------------------------------------------------------------
 -- Interface
 -------------------------------------------------------------------------------
+
 -- | Builds 'L10n' structure by parsing / .po / files contained in a given
 -- directory. 'L10n' structure is to be passed to 'localize' function.
 -- 'L10n' structure is used internaly by the 'I18n' monad.
-getL10n :: FilePath                 -- ^ Directory containing PO files.
-        -> IO (L10n, [ParseError])  -- ^ Localization structure
-            -- and a list of parse errors.
+getL10n :: FilePath
+        -- ^ Directory containing PO files.
+        -> IO (L10n, [ParseError])
+        -- ^ Localization structure and a list of parse errors.
 getL10n dir = do
-    poFiles   <- poFiles dir
-    locs      <- processPos (map (second parsePo) poFiles)
-    (es,locs) <- return (separateEithers locs)
-    return (Map.fromList locs, es)
+    poFiles'    <- poFiles dir
+    locs        <- processPos (map (second parsePo) poFiles')
+    (es, locs') <- return $! partitionEithers locs
+    return (Map.fromList locs', es)
 
 -------------------------------------------------------------------------------
 -- Internal
 -------------------------------------------------------------------------------
+
 processPos :: [(Locale, IO (Either ParseError [MsgDec]))]
-           -> IO [Either ParseError
-                         (Locale, Map.Map (Maybe Context)
-                                          (Map.Map Msgid
-                                                   [Msgstr]))]
+           -> IO [Either ParseError (Locale, CtxMap)]
 processPos rs = do
-    rs <- mapM (\(a,m) -> m >>= \b -> return (a,b)) rs
-    return $ map f rs
-  where f (l, (Right msgdecs)) = Right (l, mkMsgs msgdecs)
-        f (_, (Left  e))       = Left e
+    rs' <- mapM (\(a, m) -> m >>= \b -> return (a,b)) rs
+    return $! map f rs'
+  where
+    f :: (a, Either b [MsgDec]) -> Either b (a, CtxMap)
+    f (l, Right msgdecs) = Right (l, mkMsgs msgdecs)
+    f (_, Left  e)       = Left e
 
-mkMsgs :: [MsgDec] -> Map.Map (Maybe Context) (Map.Map Msgid [Msgstr])
+mkMsgs :: [MsgDec] -> CtxMap
 mkMsgs = foldl' f mempty
-    where f m (MsgDec ctxt msgid msgstrs) = case Map.lookup ctxt m of
-            Nothing -> f (Map.insert ctxt mempty m) (MsgDec ctxt msgid msgstrs)
-            Just c  -> Map.insert ctxt (Map.insert msgid msgstrs c) m
+    where
+      f :: CtxMap -> MsgDec -> CtxMap
+      f m (MsgDec ctxt msgid' msgstrs) =
+        case Map.lookup ctxt m of
+          Nothing -> f (Map.insert ctxt mempty m) (MsgDec ctxt msgid' msgstrs)
+          Just c  -> Map.insert ctxt (Map.insert msgid' msgstrs c) m
 
-poFiles :: FilePath -> IO [(Locale,FilePath)]
+-- | Finds all .po files for a given directory. Works on the assumption that the
+-- characters before the file extension are the locale name.
+poFiles :: FilePath -> IO [(Locale, FilePath)]
 poFiles dir = do
     files <- getDirectoryContents dir
-    return $ (map ((&&&) (Locale . (subtract 3 . length >>= take))
-                         (intercalate [pathSeparator] . (dir :) . return))
-              . filter (flip any [".po",".Po",".PO"] . flip isSuffixOf))
-             files
+    return $! fmap assocLocalesAndPaths <$> onlyPoFiles $ files
+    where
+      toAbsolutePath :: FilePath -> FilePath
+      toAbsolutePath = intercalate [pathSeparator] . (dir :) . return
+
+      isPoFile :: FilePath -> Bool
+      isPoFile = flip any [".po", ".Po", ".PO"] . flip isSuffixOf
+
+      onlyPoFiles :: [FilePath] -> [FilePath]
+      onlyPoFiles = filter isPoFile
+
+      assocLocalesAndPaths :: FilePath -> (Locale, FilePath)
+      assocLocalesAndPaths = stripLocale &&& toAbsolutePath
+
+      stripLocale :: FilePath -> Locale
+      stripLocale path =
+        let n = subtract 3 . length $ path in
+        Locale . T.pack $! take n path
 
 parsePo :: FilePath -> IO (Either ParseError [MsgDec])
-parsePo n = do
-    contents <- Utf8.readFile n
-    return $ parse po n contents
+parsePo path = do
+    contents <- T.readFile path
+    return $! parse po path contents
 
 -------------------------------------------------------------------------------
 -- .po Parser
 -------------------------------------------------------------------------------
+
 {- EBNF
     PO            ::= msg*
     msg           ::= [msg-context] (msg-singular | msg-plural)
@@ -116,73 +155,122 @@ parsePo n = do
     escaped-char  ::= "\\" char
     char          ::= (any UTF8 character)
 -}
-lexer = P.makeTokenParser (emptyDef {
-    commentLine   = "#",
-    reservedNames = ["msgctxt","msgid","msgid_plural","msgstr"] })
 
+lexer ::  P.GenTokenParser T.Text () Identity
+lexer = P.makeTokenParser poLangDef
+  where
+    poLangDef :: GenLanguageDef T.Text st Identity
+    poLangDef = LanguageDef { commentStart    = ""
+                            , commentEnd      = ""
+                            , commentLine     = "#"
+                            , nestedComments  = True
+                            , identStart      = letter <|> char '_'
+                            , identLetter     = alphaNum <|> oneOf "_'"
+                            , opStart         = opLetter poLangDef
+                            , opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
+                            , reservedOpNames = []
+                            , reservedNames   = [ "msgctxt"
+                                                , "msgid"
+                                                , "msgid_plural"
+                                                , "msgstr"
+                                                ]
+                            , caseSensitive   = True
+                            }
+
+whiteSpace :: Parser ()
 whiteSpace = P.whiteSpace lexer
-lexeme     = P.lexeme     lexer
-reserved   = P.reserved   lexer
 
-po = do whiteSpace
-        msgs <- many msg 
-        eof
-        return msgs
+lexeme :: Parser a -> Parser a
+lexeme = P.lexeme lexer
 
-msg = do ctxt      <- msg_context
-         (id,strs) <- try msg_singular <|> msg_plural
-         return (MsgDec ctxt id strs)
+reserved :: String -> Parser ()
+reserved = P.reserved lexer
 
-msg_context = try $ option Nothing $ do
-    lexeme (reserved "msgctxt")
-    strs <- many1 str
-    return (Just (concat strs))
+po :: Parser [MsgDec]
+po = do
+  _    <- whiteSpace
+  msgs <- many msg
+  _    <- eof
+  return $! msgs
 
-msg_singular = do id  <- lexeme msgid
-                  str <- lexeme msgstr
-                  return (Msgid id, [str])
+msg :: Parser MsgDec
+msg = do
+  ctxt        <- msgContext
+  (id', strs) <- try msgSingular <|> msgPlural
+  return $! MsgDec ctxt id' strs
 
-msg_plural = do id    <- lexeme msgid
-                idp   <- lexeme msgid_plural
-                strps <- lexeme (many1 msgstr_plural)
-                return (Msgid id, strps)
+msgContext :: Parser (Maybe Context)
+msgContext = try $ option Nothing $ do
+  _    <- lexeme (reserved "msgctxt")
+  strs <- many1 str
+  return (Just $! mconcat strs)
 
-msgid = do lexeme (reserved "msgid")
-           strs <- many1 str
-           return (concat strs)
+msgSingular :: Parser (Msgid, [Msgstr])
+msgSingular = do
+  id' <- lexeme msgid
+  str' <- lexeme msgstr
+  return (Msgid id', [str'])
 
-msgid_plural = do lexeme (reserved "msgid_plural")
-                  strs <- many1 str
-                  return (concat strs)
+msgPlural :: Parser (Msgid, [Msgstr])
+msgPlural = do
+  id'   <- lexeme msgid
+  _     <- lexeme msgidPlural
+  strps <- lexeme (many1 msgstrPlural)
+  return (Msgid id', strps)
 
-msgstr = do lexeme (reserved "msgstr")
-            strs <- many1 str
-            return (concat strs)
+msgid :: Parser T.Text
+msgid = do
+  _    <- lexeme (reserved "msgid")
+  strs <- many1 str
+  return $! mconcat strs
 
-msgstr_plural = do lexeme (reserved "msgstr")
-                   char '['
-                   try (do c <- oneOf ['n','N']
-                           return [c])
-                       <|> many1 (oneOf ['0'..'9'])
-                   char ']'
-                   whiteSpace
-                   strs <- many1 str
-                   return (concat strs)
+msgidPlural :: Parser Msgstr
+msgidPlural = do
+  _    <- lexeme (reserved "msgid_plural")
+  strs <- many1 str
+  return $! mconcat strs
 
-str = lexeme $ do char '"'
-                  chs <- many ch
-                  char '"'
-                  return chs
+msgstr :: Parser Msgstr
+msgstr = do
+  _    <- lexeme (reserved "msgstr")
+  strs <- many1 str
+  return $! mconcat strs
 
-ch = try escaped_ch <|> noneOf ['"']
+msgstrPlural :: Parser Msgstr
+msgstrPlural = do
+  _    <- lexeme (reserved "msgstr")
+  _    <- char '['
+  _    <- try indice
+  _    <- char ']'
+  _    <- whiteSpace
+  strs <- many1 str
+  return $! mconcat strs
+  where
+    caseN :: Parser String
+    caseN = do
+      c <- oneOf ['n', 'N']
+      return [c]
 
-escaped_ch = do e <- char '\\'
-                c <- anyChar
-                case reads ['\'',e,c,'\''] :: [(Char,String)] of
-                    (c,s):[] -> return c
-                    _        -> return c
+    caseX :: Parser String
+    caseX = many1 $ oneOf ['0'..'9']
 
--------------------------------------------------------------------------------
--- Utilities
--------------------------------------------------------------------------------
-separateEithers = foldr (either (first . (:)) (second . (:))) ([],[])
+    indice :: Parser String
+    indice = caseN <|> caseX
+
+str :: Parser T.Text
+str = lexeme $ do
+  _   <- char '"'
+  chs <- many char'
+  _   <- char '"'
+  return $! T.pack chs
+
+char' :: Parser Char
+char' = try escapedChar <|> noneOf ['"']
+
+escapedChar :: Parser Char
+escapedChar = do
+  e <- char '\\'
+  c <- anyChar
+  case reads ['\'', e, c, '\''] :: [(Char, String)] of
+    [(c', _)] -> return $! c'
+    _         -> return $! c

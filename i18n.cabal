@@ -13,6 +13,15 @@ Stability:           experimental
 Description:         Internationalization for Haskell
 
 Library
-    Build-Depends:   base, array, containers, old-locale, old-time, filepath,
-                     directory, parsec, mtl, utf8-string
-    Exposed-Modules: Text.I18n, Text.I18n.Po, Text.I18n.Printf
+    Build-Depends:   base
+                   , array
+                   , containers
+                   , old-locale
+                   , old-time
+                   , filepath
+                   , directory
+                   , parsec
+                   , mtl
+                   , text
+    Exposed-Modules: Text.I18n
+                   , Text.I18n.Po
