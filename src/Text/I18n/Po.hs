@@ -49,7 +49,6 @@ import           System.FilePath (pathSeparator)
 import           Text.I18n
 import           Text.Parsec
 import           Text.Parsec.Text
---import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as P
 
