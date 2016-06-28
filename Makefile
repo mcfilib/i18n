@@ -10,7 +10,8 @@ repl: ## Launch ghci
 	@stack ghci i18n
 
 spec: ## Run the specs
-	@stack test --fast --file-watch
+	@stack exec doctest src/Text/I18n.hs
+	@stack test --fast
 
 watch: ## Compile on file changes
 	@stack install --fast --file-watch
