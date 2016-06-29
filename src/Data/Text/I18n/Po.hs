@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Text.I18n.Po
+-- Module      :  Data.Text.I18n.Po
 -- Copyright   :  (c) Eugene Grigoriev, 2008
 -- License     :  BSD3
 --
@@ -16,20 +15,10 @@
 --
 --  Plural forms are not yet implemented.
 --
---  modules Text.I18n, Control.Monad.Trans, and function putStrLn and putStr
---  from Prelude are exported for convenience.
---
 -----------------------------------------------------------------------------
-module Text.I18n.Po (
-    -- * Type Declarations
-    Msgid(..)
-  , Msgstr
-  , Locale(..)
-  , Context
-  , I18n
-  , L10n
+module Data.Text.I18n.Po (
     -- * PO parsing
-  , getL10n
+    getL10n
     -- * I18n Monad Functions
   , localize
   , gettext
@@ -43,27 +32,15 @@ import           Data.Functor.Identity (Identity)
 import           Data.List (foldl', intercalate, isSuffixOf)
 import qualified Data.Map as Map
 import qualified Data.Text as T
+import           Data.Text.I18n
+import           Data.Text.I18n.Types
 import qualified Data.Text.IO as T
 import           System.Directory (getDirectoryContents)
 import           System.FilePath (pathSeparator)
-import           Text.I18n
 import           Text.Parsec
 import           Text.Parsec.Text
 import           Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token as P
-
--------------------------------------------------------------------------------
--- Type declarations
--------------------------------------------------------------------------------
-
--- | Message delcaration.
-data MsgDec = MsgDec (Maybe Context) Msgid [Msgstr]
-
--- | Mapping from identifiers to translations.
-type TranslationMap = Map.Map Msgid [Msgstr]
-
--- | Mapping from a contexts to translation mappings.
-type CtxMap = Map.Map (Maybe Context) TranslationMap
 
 -------------------------------------------------------------------------------
 -- Interface

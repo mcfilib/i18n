@@ -10,7 +10,8 @@ repl: ## Launch ghci
 	@stack ghci i18n
 
 spec: ## Run the specs
-	@stack exec doctest src/Text/I18n.hs
+	@stack exec doctest src/Data/Text/I18n.hs
+	@stack exec doctest src/Data/Text/I18n/Types.hs
 	@stack test --fast
 
 watch: ## Compile on file changes

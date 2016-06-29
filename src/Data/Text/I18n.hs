@@ -3,7 +3,7 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Text.I18n
+-- Module      :  Data.Text.I18n
 -- Copyright   :  (c) Eugene Grigoriev, 2008
 -- License     :  BSD3
 --
@@ -12,24 +12,16 @@
 -- Portability :  portable
 --
 -- Internationalization support for Haskell.
---  Use Text.I18n.Po module.
---
---  Plural forms are not yet implemented.
 --
 -----------------------------------------------------------------------------
-module Text.I18n (
-    -- * Type Declarations
-    Msgid(..)
-  , Context
-  , I18n
-  , L10n
-  , Locale(..)
-  , Msgstr
+module Data.Text.I18n (
     -- * Internationalization Monad Functions
-  , gettext
+    gettext
   , localize
   , withContext
   , withLocale
+    -- * Re-exports
+  , module Data.Text.I18n.Types
 ) where
 
 import           Control.Monad.Identity
@@ -38,26 +30,7 @@ import qualified Data.Map as Map
 import           Data.Maybe
 import qualified Data.Text as T
 
--------------------------------------------------------------------------------
--- Type declarations
--------------------------------------------------------------------------------
-
-newtype Msgid = Msgid T.Text deriving (Show, Eq, Ord)
-
-type Msgstr = T.Text
-
-newtype Locale = Locale T.Text deriving (Show, Eq, Ord)
-
-type Context = T.Text
-
--- | The Internationalization monad built using monad transformers.
-type I18n a = ReaderT (Locale, L10n, Maybe Context) Identity a
-
--- | The Localization structure.
-type L10n = Map.Map Locale
-                    (Map.Map (Maybe Context)
-                             (Map.Map Msgid
-                                      [Msgstr]))
+import           Data.Text.I18n.Types
 
 -------------------------------------------------------------------------------
 -- I18N Monad functions
@@ -65,8 +38,8 @@ type L10n = Map.Map Locale
 
 -- $setup
 -- >>> :set -XOverloadedStrings
--- >>> import qualified Text.I18n    as I18n
--- >>> import qualified Text.I18n.Po as I18n
+-- >>> import qualified Data.Text.I18n    as I18n
+-- >>> import qualified Data.Text.I18n.Po as I18n
 -- >>> let example = I18n.gettext "Like tears in rain."
 -- >>> (l10n, _) <- I18n.getL10n "./test"
 

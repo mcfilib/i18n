@@ -3,8 +3,8 @@
 import Test.Tasty
 import Test.Tasty.Hspec
 
-import Text.I18n
-import Text.I18n.Po
+import Data.Text.I18n
+import Data.Text.I18n.Po
 
 main :: IO ()
 main = do
