@@ -36,7 +36,9 @@ executable i18n
                      , containers
                      , i18n
                      , optparse-applicative
+                     , pcre-light
                      , raw-strings-qq
+                     , string-conv
   default-language:    Haskell2010
 
 test-suite i18n-test

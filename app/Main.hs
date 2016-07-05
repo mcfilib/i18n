@@ -1,23 +1,31 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns    #-}
+{-# LANGUAGE QuasiQuotes     #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE QuasiQuotes #-}
 
 module Main where
 
 import           Control.Monad
+import qualified Data.List                  as List
 import           Data.Maybe
-import           Data.Set (Set)
-import qualified Data.Set as Set
+import qualified Data.Set                   as Set
+import           Data.String.Conv
 import           Data.Text.I18n.Shakespeare
 import           Data.Version
 import           Options.Applicative
 import           Paths_i18n
 import           System.Exit
-import           System.IO (withFile, IOMode(..), hPutStr)
+import           System.IO                  (IOMode (..), hPutStr, withFile)
 import           Text.RawString.QQ
+import qualified Text.Regex.PCRE.Light      as PCRE
 
 -- | Description of shakespeare-gettext CLI.
-data CLIOpts = CLIOpts { cliKeyword :: Maybe String, cliOutput :: String, cliFiles :: [String] }
+data CLIOpts =
+       CLIOpts
+         { cliKeyword :: Maybe String
+         , cliOutput  :: String
+         , cliRegexp  :: Maybe String
+         , cliFiles   :: [String]
+         }
 
 -- | Runnable description of shakespeare-gettext.
 cliOpts :: ParserInfo CLIOpts
@@ -35,48 +43,76 @@ cliVersion = infoOption (showVersion version)
 -- | Parser for shakespeare-gettext.
 cliOptsParser :: Parser CLIOpts
 cliOptsParser =
-  CLIOpts <$> optional
-                (strOption
-                   (long "keyword"
-                    <> short 'k'
-                    <> help "Name of gettext function"))
-                <*> strOption
-                   (long "output"
-                    <> short 'o'
-                    <> help "Write output to specified file")
-                <*> some (argument str (metavar "FILES..."))
+  CLIOpts <$> parseKeyword <*> parseOutput <*> parseRegexp <*> parseFiles
+  where
+    parseKeyword :: Parser (Maybe String)
+    parseKeyword = optional
+                     (strOption
+                        (long "keyword"
+                         <> short 'k'
+                         <> help "Name of gettext function"))
+
+    parseOutput :: Parser String
+    parseOutput = strOption
+                    (long "output"
+                     <> short 'o'
+                     <> help "Write output to specified file")
+
+    parseFiles :: Parser [String]
+    parseFiles = some (argument str (metavar "FILES..."))
+
+    parseRegexp :: Parser (Maybe String)
+    parseRegexp = optional
+                    (strOption
+                       (long "regex"
+                        <> short 'r'
+                        <> help "Regexp for extracting annotations"))
 
 -- | Interpret description of shakespeare-gettext in IO.
 runCli :: CLIOpts -> IO ()
 runCli CLIOpts { .. } = do
   writeFile cliOutput potHeader
 
-  withFile cliOutput AppendMode $ \hld -> do
-    translations <- foldM translationFolder Set.empty cliFiles
-    forM_ translations (hPutStr hld)
+  withFile cliOutput AppendMode $ \fileHandle -> do
+    translations <- Set.fromList <$> foldM gatherTranslations mempty cliFiles
+    forM_ translations (hPutStr fileHandle)
+
   where
-    translationFolder :: Set.Set String -> FilePath -> IO (Set String)
-    translationFolder !acc path = do
-        source <- readFile path
-        let result = decode (fromMaybe defaultKeyword cliKeyword) source
-        case result of
-          Left err ->
-            die err
-          Right t -> return $ acc <> toMessages t
+    gatherTranslations :: [String] -> FilePath -> IO [String]
+    gatherTranslations !acc path = do
+      source <- readFile path
+      case cliRegexp of
+        Nothing     -> handleOthers acc source
+        Just regexp -> handleRegexp acc source (PCRE.compile (toS regexp) [])
+
+    handleRegexp :: [String] -> String -> PCRE.Regex -> IO [String]
+    handleRegexp !acc source regexp = foldM go mempty (lines source)
+      where
+        go :: [String] -> String -> IO [String]
+        go !acc' line =
+          case PCRE.match regexp (toS line) [] of
+            Nothing -> return acc'
+            Just matches ->
+              case matches of
+                []        -> return acc
+                [_]       -> return acc
+                _:match:_ -> return $! acc <> List.insert (toMessage (toS match)) acc'
+
+    handleOthers :: [String] -> String -> IO [String]
+    handleOthers !acc source = do
+      let result = decode (fromMaybe defaultKeyword cliKeyword) source
+      case result of
+        Left err ->
+          die err
+        Right translations ->
+          return $! acc <> fmap toMessage translations
 
     defaultKeyword :: String
     defaultKeyword = "_"
 
-
--- | Transform translations to collection of messages.
-toMessages :: Set.Set String -> Set.Set String
-toMessages = Set.map messageTemplate
-    where
-      messageTemplate :: String -> String
-      messageTemplate translation = unlines [ "msgid " <> show translation
-                                            , "msgstr \"\""
-                                            , ""
-                                            ]
+-- | Transform a translation to a message.
+toMessage :: String -> String
+toMessage translation = unlines ["msgid " <> show translation, "msgstr \"\"", ""]
 
 -- | POT header file.
 potHeader :: String

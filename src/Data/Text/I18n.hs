@@ -1,57 +1,48 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
------------------------------------------------------------------------------
--- |
--- Module      :  Data.Text.I18n
--- Copyright   :  (c) Eugene Grigoriev, 2008
--- License     :  BSD3
+-- --------------------------------------------------------------------------- | Module :
+-- Data.Text.I18n Copyright : (c) Eugene Grigoriev, 2008 License : BSD3
 --
--- Maintainer  :  eugene.grigoriev@gmail.com
--- Stability   :  experimental
--- Portability :  portable
+-- Maintainer : eugene.grigoriev@gmail.com Stability : experimental Portability : portable
 --
 -- Internationalization support for Haskell.
 --
 -----------------------------------------------------------------------------
 module Data.Text.I18n (
-    -- * Internationalization Monad Functions
-    gettext
-  , localize
-  , withContext
-  , withLocale
+    -- * Internatqionalization Monad Functions
+    gettext,
+    localize,
+    withContext,
+    withLocale,
     -- * Re-exports
-  , module Data.Text.I18n.Types
-) where
+    module Data.Text.I18n.Types,
+    ) where
 
 import           Control.Monad.Identity
 import           Control.Monad.Reader
 import qualified Data.Map as Map
 import           Data.Maybe
 import qualified Data.Text as T
-
 import           Data.Text.I18n.Types
-
--------------------------------------------------------------------------------
--- I18N Monad functions
--------------------------------------------------------------------------------
 
 -- $setup
 -- >>> :set -XOverloadedStrings
 -- >>> import qualified Data.Text.I18n    as I18n
 -- >>> import qualified Data.Text.I18n.Po as I18n
 -- >>> let example = I18n.gettext "Like tears in rain."
--- >>> (l10n, _) <- I18n.getL10n "./test"
-
+-- >>> (l10n, _) <- I18n.getL10n "./test/locale"
+--
 -- | The heart of I18n monad.
 gettext :: T.Text -> I18n T.Text
 gettext msgid = do
-    (loc, l10n, ctxt) <- ask
-    case localizeMsgid l10n loc ctxt (Msgid msgid) of
-        Just msgstr -> return msgstr
-        Nothing     -> case ctxt of
-                            Just _  -> withContext Nothing (gettext msgid)
-                            Nothing -> return msgid
+  (loc, l10n, ctxt) <- ask
+  case localizeMsgid l10n loc ctxt (Msgid msgid) of
+    Just msgstr -> return msgstr
+    Nothing ->
+      case ctxt of
+        Just _  -> withContext Nothing (gettext msgid)
+        Nothing -> return msgid
 
 -- | Top level localization function.
 --
@@ -70,8 +61,8 @@ localize :: L10n    -- ^ Structure containing localization data
          -> a       -- ^ Localized expression
 localize l10n loc expression = runIdentity $ runReaderT expression (loc, l10n, Nothing)
 
--- | Sets a local 'Context' for an internationalized expression.
--- If there is no translation, then no context version is tried.
+-- | Sets a local 'Context' for an internationalized expression. If there is no translation, then no
+-- context version is tried.
 --
 -- Examples:
 --
@@ -82,9 +73,8 @@ withContext :: Maybe Context -- ^ Context to use
             -> I18n a        -- ^ Internationalized expression
             -> I18n a        -- ^ New internationalized expression
 withContext ctxt expression = do
-    (lang, l10n, _) <- ask
-    local (const (lang, l10n, ctxt))
-          expression
+  (lang, l10n, _) <- ask
+  local (const (lang, l10n, ctxt)) expression
 
 -- | Sets a local 'Locale' for an internationalized expression.
 --
@@ -98,13 +88,12 @@ withLocale :: Locale    -- ^ Locale to use
            -> I18n a    -- ^ New internationalized expression.
 withLocale loc expression = do
   (_, l10n, ctxt) <- ask
-  local (const (loc, l10n, ctxt))
-    expression
+  local (const (loc, l10n, ctxt)) expression
 
 -- | Internal lookup function.
 localizeMsgid :: L10n -> Locale -> Maybe Context -> Msgid -> Maybe T.Text
 localizeMsgid l10n loc ctxt msgid = do
-    local'     <- Map.lookup loc l10n
-    contextual <- Map.lookup ctxt local'
-    msgstrs    <- Map.lookup msgid contextual
-    listToMaybe msgstrs
+  local' <- Map.lookup loc l10n
+  contextual <- Map.lookup ctxt local'
+  msgstrs <- Map.lookup msgid contextual
+  listToMaybe msgstrs
