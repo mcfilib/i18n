@@ -1,37 +1,63 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Test.Tasty
-import Test.Tasty.Hspec
-
-import Data.Text.I18n
-import Data.Text.I18n.Po
+import qualified Data.Set as Set
+import           Data.Text.I18n
+import           Data.Text.I18n.Po
+import           Data.Text.I18n.Shakespeare
+import           Test.Tasty
+import           Test.Tasty.Hspec
 
 main :: IO ()
 main = do
-  a <- testSpec "Integration Specs" integrationSpecs
-  defaultMain (tests $ testGroup "All specs" [ a ])
+  a <- testSpec "Library Specs" librarySpecs
+  b <- testSpec "Application Specs" applicationSpecs
+  defaultMain (tests $ testGroup "All specs" [ a, b ])
 
 tests :: TestTree -> TestTree
 tests specs = testGroup "i18n Tests" [ specs ]
 
-integrationSpecs :: Spec
-integrationSpecs = describe "localize" $ do
+librarySpecs :: Spec
+librarySpecs = describe "localize" $ do
+  let localeDir = "test/locale"
+
   context "when the translation does not exist" $ do
     it "should return the original" $ do
-      (l10n, _) <- getL10n "./test"
+      (l10n, _) <- getL10n localeDir
       let subject = localize l10n (Locale "fr") (gettext "Like tears in rain.")
       let result = "Like tears in rain."
       subject `shouldBe` result
 
   context "when the translation does exist" $ do
     it "should return the original" $ do
-      (l10n, _) <- getL10n "./test"
+      (l10n, _) <- getL10n localeDir
       let subject = localize l10n (Locale "en") (gettext "Like tears in rain.")
       let result = "Like tears in rain."
       subject `shouldBe` result
 
     it "should return the translation" $ do
-      (l10n, _) <- getL10n "./test"
+      (l10n, _) <- getL10n localeDir
       let subject = localize l10n (Locale "cy") (gettext "Like tears in rain.")
       let result = "Fel dagrau yn y glaw."
       subject `shouldBe` result
+
+applicationSpecs :: Spec
+applicationSpecs = describe "Shakespeare parser" $
+  describe "decode" $ do
+    context "when the file contains some translations" $ do
+      it "should be able to find them" $ do
+        template <- readFile "test/templates/template.hamlet"
+        let subject = decode "_" template
+        let result = Right ["Hello there, %s."]
+        subject `shouldBe` (Set.fromList <$> result)
+      it "should be able to handle dupes correctly" $ do
+        template <- readFile "test/templates/template_with_dupes.hamlet"
+        let subject = decode "_" template
+        let result = Right ["Getting Started"]
+        subject `shouldBe` (Set.fromList <$> result)
+
+    context "when the file does not contain some translations" $
+      it "should not find them" $ do
+        template <- readFile "test/templates/template.hamlet"
+        let subject = decode "gettext" template
+        let result = Right Set.empty
+        subject `shouldBe` result

@@ -1,6 +1,9 @@
 resolver: lts-3.14
 packages:
 - '.'
+- location:
+    git: git@github.com:filib/shakespeare.git
+    commit: "HEAD"
 extra-deps: []
 flags: {}
 extra-package-dbs: []
