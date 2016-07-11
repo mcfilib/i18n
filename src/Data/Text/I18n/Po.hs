@@ -19,6 +19,8 @@ module Data.Text.I18n.Po (
     gettext,
     withContext,
     withLocale,
+    -- * Parsing functions
+    parsePo
     ) where
 
 import           Control.Arrow                          (second, (&&&))

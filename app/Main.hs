@@ -1,36 +1,49 @@
 {-# LANGUAGE BangPatterns    #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes     #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
 import           Control.Monad
-import qualified Data.List                  as List
+import qualified Data.List as List
 import           Data.Maybe
-import qualified Data.Set                   as Set
+import qualified Data.Set as Set
 import           Data.String.Conv
+import qualified Data.Text.I18n.Po as I18n
 import           Data.Text.I18n.Shakespeare
+import           Data.Text.I18n.Types
 import           Data.Version
+import           Language.Javascript.JMacro
 import           Options.Applicative
 import           Paths_i18n
 import           System.Exit
-import           System.IO                  (IOMode (..), hPutStr, withFile)
+import           System.IO (IOMode (..), hPutStr, withFile)
 import           Text.RawString.QQ
-import qualified Text.Regex.PCRE.Light      as PCRE
+import qualified Text.Regex.PCRE.Light as PCRE
 
--- | Description of shakespeare-gettext CLI.
-data CLIOpts =
-       CLIOpts
-         { cliKeyword :: Maybe String
-         , cliOutput  :: String
-         , cliRegexp  :: Maybe String
-         , cliFiles   :: [String]
+-- | Description of all available subcommands.
+data Command = Find FindOpts | ToJS ToJSOpts
+
+-- | Description of i18n tojs CLI.
+data ToJSOpts = ToJSOpts { toJSPOFile :: FilePath
+                         , toJSOutput :: FilePath
+                         , toJSLocale :: String
+                         }
+
+-- | Description of i18n find CLI.
+data FindOpts =
+       FindOpts
+         { findKeyword :: Maybe String
+         , findOutput  :: FilePath
+         , findRegexp  :: Maybe String
+         , findFiles   :: [FilePath]
          }
 
 -- | Runnable description of shakespeare-gettext.
-cliOpts :: ParserInfo CLIOpts
-cliOpts =
-  info (helper <*> cliVersion <*> cliOptsParser)
+cliInfo :: ParserInfo Command
+cliInfo =
+  info (helper <*> cliVersion <*> parseCommand)
     (fullDesc
      <> progDesc "xgettext clone for the Haskell ecosystem"
      <> header "i18n - xgettext for Haskell")
@@ -40,11 +53,23 @@ cliVersion :: Parser (a -> a)
 cliVersion = infoOption (showVersion version)
                (long "version" <> short 'v' <> help "Show version information" <> hidden)
 
--- | Parser for shakespeare-gettext.
-cliOptsParser :: Parser CLIOpts
-cliOptsParser =
-  CLIOpts <$> parseKeyword <*> parseOutput <*> parseRegexp <*> parseFiles
+-- | Utility function to add help support.
+withInfo :: Parser a -> String -> ParserInfo a
+withInfo opts desc = info (helper <*> opts) $ progDesc desc
+
+-- | Parser for subcommands.
+parseCommand :: Parser Command
+parseCommand = subparser $
+  command "find" (parseFind `withInfo` "Find translations in src files") <>
+  command "tojs" (parseToJS `withInfo` "Convert PO files to JS")
+
+-- | Parser for the find subcommand.
+parseFind :: Parser Command
+parseFind = Find <$> parseFindOpts
   where
+    parseFindOpts :: Parser FindOpts
+    parseFindOpts = FindOpts <$> parseKeyword <*> parseOutput <*> parseRegexp <*> parseFiles
+
     parseKeyword :: Parser (Maybe String)
     parseKeyword = optional
                      (strOption
@@ -52,13 +77,13 @@ cliOptsParser =
                          <> short 'k'
                          <> help "Name of gettext function"))
 
-    parseOutput :: Parser String
+    parseOutput :: Parser FilePath
     parseOutput = strOption
                     (long "output"
                      <> short 'o'
                      <> help "Write output to specified file")
 
-    parseFiles :: Parser [String]
+    parseFiles :: Parser [FilePath]
     parseFiles = some (argument str (metavar "FILES..."))
 
     parseRegexp :: Parser (Maybe String)
@@ -68,20 +93,50 @@ cliOptsParser =
                         <> short 'r'
                         <> help "Regexp for extracting annotations"))
 
--- | Interpret description of shakespeare-gettext in IO.
-runCli :: CLIOpts -> IO ()
-runCli CLIOpts { .. } = do
-  writeFile cliOutput potHeader
+-- | Parser for the tojs subcommand.
+parseToJS :: Parser Command
+parseToJS = ToJS <$> parseJSOpts
+  where
+    parseJSOpts :: Parser ToJSOpts
+    parseJSOpts = ToJSOpts <$> parsePOFile <*> parseOutput <*> parseLocale
 
-  withFile cliOutput AppendMode $ \fileHandle -> do
-    translations <- Set.fromList <$> foldM gatherTranslations mempty cliFiles
+    parsePOFile :: Parser FilePath
+    parsePOFile = strOption
+                    (long "po"
+                     <> short 'p'
+                     <> help "PO file to parse")
+
+    parseOutput :: Parser FilePath
+    parseOutput = strOption
+                    (long "output"
+                     <> short 'o'
+                     <> help "Write output to specified file")
+
+    parseLocale :: Parser String
+    parseLocale = strOption
+                    (long "locale"
+                     <> short 'l'
+                     <> help "Locale e.g. en_GB")
+
+-- | Interpret description of i18n in IO.
+runCli :: Command -> IO ()
+runCli (Find opts) = runFind opts
+runCli (ToJS opts) = runToJS opts
+
+-- | Interpret the find command in IO.
+runFind :: FindOpts -> IO ()
+runFind FindOpts { .. } = do
+  writeFile findOutput potHeader
+
+  withFile findOutput AppendMode $ \fileHandle -> do
+    translations <- Set.fromList <$> foldM gatherTranslations mempty findFiles
     forM_ translations (hPutStr fileHandle)
 
   where
     gatherTranslations :: [String] -> FilePath -> IO [String]
     gatherTranslations !acc path = do
       source <- readFile path
-      case cliRegexp of
+      case findRegexp of
         Nothing     -> handleOthers acc source
         Just regexp -> handleRegexp acc source (PCRE.compile (toS regexp) [])
 
@@ -100,7 +155,7 @@ runCli CLIOpts { .. } = do
 
     handleOthers :: [String] -> String -> IO [String]
     handleOthers !acc source = do
-      let result = decode (fromMaybe defaultKeyword cliKeyword) source
+      let result = decode (fromMaybe defaultKeyword findKeyword) source
       case result of
         Left err ->
           die err
@@ -109,6 +164,29 @@ runCli CLIOpts { .. } = do
 
     defaultKeyword :: String
     defaultKeyword = "_"
+
+-- | Interpret the tojs command in IO.
+runToJS :: ToJSOpts -> IO ()
+runToJS ToJSOpts { .. } = do
+  result <- I18n.parsePo toJSPOFile
+  case result of
+    Left err  -> die (show err)
+    Right messages -> do
+      writeFile toJSOutput "// Autogenerated by i18n"
+      withFile toJSOutput AppendMode $ \fileHandle -> do
+        hPutStr fileHandle "\n"
+        hPutStr fileHandle (toJS messages)
+  where
+    toJS :: [MsgDec] -> String
+    toJS messages = show $ renderJs (defineObject <> mconcat (fmap addToObject messages))
+
+    defineObject :: JStat
+    defineObject = [jmacro| var !locale = locale || {}; |]
+
+    addToObject :: MsgDec -> JStat
+    addToObject (MsgDec _ (Msgid key) vals) = case key of
+      "" -> mempty
+      _  -> [jmacro| locale[`(key)`] = `(vals)`; |]
 
 -- | Transform a translation to a message.
 toMessage :: String -> String
@@ -135,4 +213,4 @@ msgstr ""
 |]
 
 main :: IO ()
-main = execParser cliOpts >>= runCli
+main = execParser cliInfo >>= runCli

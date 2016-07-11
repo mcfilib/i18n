@@ -35,6 +35,7 @@ executable i18n
   build-depends:       base
                      , containers
                      , i18n
+                     , jmacro
                      , optparse-applicative
                      , pcre-light
                      , raw-strings-qq
