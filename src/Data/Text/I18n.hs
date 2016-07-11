@@ -21,9 +21,9 @@ module Data.Text.I18n (
 
 import           Control.Monad.Identity
 import           Control.Monad.Reader
-import qualified Data.Map as Map
+import qualified Data.Map               as Map
 import           Data.Maybe
-import qualified Data.Text as T
+import qualified Data.Text              as T
 import           Data.Text.I18n.Types
 
 -- $setup
@@ -48,7 +48,7 @@ gettext msgid = do
 --
 -- Examples:
 --
--- >>> I18n.localize l10n (I18n.Locale "cy") example
+-- >>> I18n.localize l10n (I18n.Locale "cym") example
 -- "Fel dagrau yn y glaw."
 --
 -- When the translation doesn't exist:
@@ -67,7 +67,7 @@ localize l10n loc expression = runIdentity $ runReaderT expression (loc, l10n, N
 -- Examples:
 --
 -- >>> let example2 = I18n.withContext (Just "Attack ships on fire off the shoulder of Orion.") example
--- >>> I18n.localize l10n (I18n.Locale "cy") example2
+-- >>> I18n.localize l10n (I18n.Locale "cym") example2
 -- "Fel dagrau yn y glaw."
 withContext :: Maybe Context -- ^ Context to use
             -> I18n a        -- ^ Internationalized expression
@@ -81,7 +81,7 @@ withContext ctxt expression = do
 -- Examples:
 --
 -- >>> let example3 = I18n.withLocale (I18n.Locale "en") example
--- >>> I18n.localize l10n (I18n.Locale "cy") example3
+-- >>> I18n.localize l10n (I18n.Locale "cym") example3
 -- "Like tears in rain."
 withLocale :: Locale    -- ^ Locale to use
            -> I18n a    -- ^ Internationalized expression

@@ -35,7 +35,7 @@ librarySpecs = describe "localize" $ do
 
     it "should return the translation" $ do
       (l10n, _) <- getL10n localeDir
-      let subject = localize l10n (Locale "cy") (gettext "Like tears in rain.")
+      let subject = localize l10n (Locale "cym") (gettext "Like tears in rain.")
       let result = "Fel dagrau yn y glaw."
       subject `shouldBe` result
 

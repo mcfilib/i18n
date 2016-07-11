@@ -20,7 +20,7 @@ module Data.Text.I18n.Po (
     withContext,
     withLocale,
     -- * Parsing functions
-    parsePo
+    parsePo,
     ) where
 
 import           Control.Arrow                          (second, (&&&))
