@@ -5,29 +5,36 @@
 
 module Main where
 
-import           Control.Monad
-import qualified Data.List                  as List
-import           Data.Maybe
-import qualified Data.Set                   as Set
-import           Data.String.Conv
-import qualified Data.Text.I18n.Po          as I18n
-import           Data.Text.I18n.Shakespeare
-import           Data.Text.I18n.Types
-import           Data.Version
-import           Language.Javascript.JMacro
-import           Options.Applicative
-import           Paths_i18n
-import           System.Exit
-import           System.IO                  (IOMode (..), hPutStr, withFile)
-import           Text.RawString.QQ
-import qualified Text.Regex.PCRE.Light      as PCRE
+import Control.Monad (foldM, forM_)
+import Data.List (insert)
+import Data.Maybe (fromMaybe)
+import Data.Set (fromList)
+import Data.String.Conv (toS)
+import Data.Version (showVersion)
+import Language.Javascript.JMacro
+import Options.Applicative
+import Paths_i18n (version)
+import System.Exit (die)
+import System.IO (IOMode (..), hPutStr, withFile)
+import Text.RawString.QQ (r)
+import Text.Regex.PCRE.Light (Regex, compile, match)
+
+import Data.Text.I18n.Po (parsePo)
+import Data.Text.I18n.Shakespeare (decode)
+import Data.Text.I18n.Types (Msgid(..), MsgDec(..))
+
+main :: IO ()
+main = execParser cliInfo >>= runCli
 
 -- | Description of all available subcommands.
 data Command = Find FindOpts
              | ToJS ToJSOpts
 
 -- | Description of i18n tojs CLI.
-data ToJSOpts = ToJSOpts { toJSPOFile :: FilePath, toJSOutput :: FilePath, toJSLocale :: String }
+data ToJSOpts = ToJSOpts { toJSPOFile :: FilePath
+                         , toJSOutput :: FilePath
+                         , toJSLocale :: String
+                         }
 
 -- | Description of i18n find CLI.
 data FindOpts =
@@ -38,7 +45,7 @@ data FindOpts =
          , findFiles   :: [FilePath]
          }
 
--- | Runnable description of shakespeare-gettext.
+-- | Runnable description of i18n CLI.
 cliInfo :: ParserInfo Command
 cliInfo =
   info (helper <*> cliVersion <*> parseCommand)
@@ -59,7 +66,7 @@ withInfo opts desc = info (helper <*> opts) $ progDesc desc
 parseCommand :: Parser Command
 parseCommand = subparser $
   command "find" (parseFind `withInfo` "Find translations in src files") <>
-  command "tojs" (parseToJS `withInfo` "Convert PO files to JS")
+  command "tojs" (parseToJS `withInfo` "Convert PO files to JavaScript")
 
 -- | Parser for the find subcommand.
 parseFind :: Parser Command
@@ -127,7 +134,7 @@ runFind FindOpts { .. } = do
   writeFile findOutput potHeader
 
   withFile findOutput AppendMode $ \fileHandle -> do
-    translations <- Set.fromList <$> foldM gatherTranslations mempty findFiles
+    translations <- fromList <$> foldM gatherTranslations mempty findFiles
     forM_ translations (hPutStr fileHandle)
 
   where
@@ -136,20 +143,21 @@ runFind FindOpts { .. } = do
       source <- readFile path
       case findRegexp of
         Nothing     -> handleOthers acc source
-        Just regexp -> handleRegexp acc source (PCRE.compile (toS regexp) [])
+        Just regexp -> handleRegexp acc source (compile (toS regexp) [])
 
-    handleRegexp :: [String] -> String -> PCRE.Regex -> IO [String]
-    handleRegexp !acc source regexp = foldM go mempty (lines source)
+    handleRegexp :: [String] -> String -> Regex -> IO [String]
+    handleRegexp !acc source regexp = foldM go acc (lines source)
       where
         go :: [String] -> String -> IO [String]
         go !acc' line =
-          case PCRE.match regexp (toS line) [] of
+          case match regexp (toS line) [] of
             Nothing -> return acc'
             Just matches ->
               case matches of
-                []        -> return acc
-                [_]       -> return acc
-                _:match:_ -> return $! acc <> List.insert (toMessage (toS match)) acc'
+                []                     -> return acc'
+                [_]                    -> return acc'
+                _:translatableString:_ ->
+                  return $! insert (toMessage (toS translatableString)) acc'
 
     handleOthers :: [String] -> String -> IO [String]
     handleOthers !acc source = do
@@ -166,7 +174,7 @@ runFind FindOpts { .. } = do
 -- | Interpret the tojs command in IO.
 runToJS :: ToJSOpts -> IO ()
 runToJS ToJSOpts { .. } = do
-  result <- I18n.parsePo toJSPOFile
+  result <- parsePo toJSPOFile
   case result of
     Left err -> die (show err)
     Right messages -> do
@@ -214,6 +222,3 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 |]
-
-main :: IO ()
-main = execParser cliInfo >>= runCli
