@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 -- --------------------------------------------------------------------------- | Module :
@@ -96,4 +97,7 @@ localizeMsgid l10n loc ctxt msgid = do
   local' <- Map.lookup loc l10n
   contextual <- Map.lookup ctxt local'
   msgstrs <- Map.lookup msgid contextual
-  listToMaybe msgstrs
+  case listToMaybe msgstrs of
+    Nothing     -> Nothing
+    Just ""     -> Nothing
+    Just msgstr -> Just msgstr
