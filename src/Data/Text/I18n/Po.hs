@@ -1,16 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- --------------------------------------------------------------------------- | Module :
--- Data.Text.I18n.Po Copyright : (c) Eugene Grigoriev, 2008 License : BSD3
+-- |
+-- Module:      Data.Text.I18n.Po
+-- Copyright:   (c) 2011-2016 Eugene Grigoriev
+-- License:     BSD3
+-- Maintainer:  Philip Cunningham <hello@filib.io>
+-- Stability:   experimental
+-- Portability: portable
 --
--- Maintainer : eugene.grigoriev@gmail.com Stability : experimental Portability : portable
---
--- Internationalization support for Haskell. This module contains
---  PO parser. PO files are assumed to be in UTF-8 encoding.
---
---  Plural forms are not yet implemented.
---
------------------------------------------------------------------------------
+-- This module contains the PO parser. PO files are assumed to be in UTF-8
+-- encoding. Plural forms are not yet implemented.
+
 module Data.Text.I18n.Po (
     -- * PO parsing
     getL10n,
@@ -40,23 +40,23 @@ import           Text.Parsec.Text
 import           Text.ParserCombinators.Parsec.Language
 import qualified Text.ParserCombinators.Parsec.Token    as P
 
--- ----------------------------------------------------------------------------- Interface
--- ----------------------------------------------------------------------------- | Builds 'L10n'
--- structure by parsing / .po / files contained in a given directory. 'L10n' structure is to be
--- passed to 'localize' function. 'L10n' structure is used internaly by the 'I18n' monad.
+-- External functions
+
+-- | Builds 'L10n' structure by parsing / .po / files contained in a given
+-- directory. 'L10n' structure is to be passed to 'localize' function. 'L10n'
+-- structure is used internaly by the 'I18n' monad.
 getL10n :: FilePath
-        ->
-           -- ^ Directory containing PO files.
-           IO (L10n, [ParseError])
--- ^ Localization structure and a list of parse errors.
+        -- ^ Directory containing PO files.
+        -> IO (L10n, [ParseError])
+        -- ^ Localization structure and a list of parse errors.
 getL10n dir = do
   poFiles' <- poFiles dir
   locs <- processPos (map (second parsePo) poFiles')
   (es, locs') <- return $! partitionEithers locs
   return (Map.fromList locs', es)
 
--- ----------------------------------------------------------------------------- Internal
--- -----------------------------------------------------------------------------
+-- Internal Fuctions
+
 processPos :: [(Locale, IO (Either ParseError [MsgDec]))]
            -> IO [Either ParseError (Locale, CtxMap)]
 processPos rs = do
@@ -107,8 +107,6 @@ parsePo path = do
   contents <- T.readFile path
   return $! parse po path contents
 
--- ----------------------------------------------------------------------------- .po Parser
--- -----------------------------------------------------------------------------
 {- EBNF
     PO            ::= msg*
     msg           ::= [msg-context] (msg-singular | msg-plural)

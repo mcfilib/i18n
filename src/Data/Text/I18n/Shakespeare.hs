@@ -1,10 +1,18 @@
+-- |
+-- Module:      Data.Text.I18n.Shakespeare
+-- Copyright:   (c) 2011-2016 Eugene Grigoriev
+-- License:     BSD3
+-- Maintainer:  Philip Cunningham <hello@filib.io>
+-- Stability:   experimental
+-- Portability: portable
+--
+-- This module is used to pull annotations out of Shakespeare templates.
+
 module Data.Text.I18n.Shakespeare where
 
-import           Data.Set              (Set)
-import qualified Data.Set              as Set
-import           Text.Hamlet
-import           Text.Hamlet.Parse
-import           Text.Shakespeare.Base
+import Text.Hamlet
+import Text.Hamlet.Parse
+import Text.Shakespeare.Base
 
 -- | Parse a document and pull out translation identifier bodies.
 decode :: String -> String -> Either String [String]

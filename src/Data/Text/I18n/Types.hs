@@ -1,11 +1,13 @@
--- --------------------------------------------------------------------------- | Module :
--- Data.Text.I18n Copyright : (c) Eugene Grigoriev, 2008 License : BSD3
+-- |
+-- Module:      Data.Text.I18n.Po
+-- Copyright:   (c) 2011-2016 Eugene Grigoriev
+-- License:     BSD3
+-- Maintainer:  Philip Cunningham <hello@filib.io>
+-- Stability:   experimental
+-- Portability: portable
 --
--- Maintainer : eugene.grigoriev@gmail.com Stability : experimental Portability : portable
---
--- Internationalization support for Haskell.
---
------------------------------------------------------------------------------
+-- Internationalisation support for Haskell.
+
 module Data.Text.I18n.Types (
     -- * Type Declarations
     Context,
