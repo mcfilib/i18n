@@ -5,11 +5,11 @@ synopsis:            Internationalization for Haskell
 category:            Text
 license:             BSD3
 license-file:        LICENSE
-copyright:           (c) 2008 Eugene Grigoriev
+copyright:           (c) 2008-2016 Eugene Grigoriev
 author:              Eugene Grigoriev <eugene.grigoriev@gmail.com>
-maintainer:          Eugene Grigoriev <eugene.grigoriev@gmail.com>
+maintainer:          Philip Cunningham <hello@filib.io>
 stability:           experimental
-description:         Internationalization for Haskell
+description:         Internationalisation for Haskell
 cabal-version:       >=1.10
 
 library
