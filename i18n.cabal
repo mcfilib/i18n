@@ -1,16 +1,23 @@
 name:                i18n
 version:             0.4.0.0
-build-type:          Simple
-synopsis:            Internationalization for Haskell
-category:            Text
-license:             BSD3
+description:         Internationalisation for Haskell
 license-file:        LICENSE
-copyright:           (c) 2008-2016 Eugene Grigoriev
+license:             BSD3
+
 author:              Eugene Grigoriev <eugene.grigoriev@gmail.com>
+bug-reports:         https://github.com/filib/i18n/issues
+build-type:          Simple
+cabal-version:       >=1.10
+category:            Text
+copyright:           (c) 2008-2016 Eugene Grigoriev
+homepage:            https://github.com/filib/i18n
 maintainer:          Philip Cunningham <hello@filib.io>
 stability:           experimental
-description:         Internationalisation for Haskell
-cabal-version:       >=1.10
+synopsis:            Internationalization for Haskell
+
+Source-repository head
+  type: git
+  location: https://github.com/filib/i18n
 
 library
     hs-source-dirs:    src
