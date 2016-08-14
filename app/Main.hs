@@ -5,23 +5,23 @@
 
 module Main where
 
-import Control.Monad (foldM, forM_)
-import Data.List (insert)
-import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>))
-import Data.Set (fromList)
-import Data.String.Conv (toS)
-import Language.Javascript.JMacro
-import Options.Applicative (execParser)
-import System.Exit (die)
-import System.IO (IOMode (..), hPutStr, withFile)
-import Text.RawString.QQ (r)
-import Text.Regex.PCRE.Light (Regex, compile, match)
+import           Control.Monad (foldM, forM_)
+import           Data.List (insert)
+import           Data.Maybe (fromMaybe)
+import           Data.Monoid ((<>))
+import           Data.Set (fromList)
+import           Data.String.Conv (toS)
+import           Language.Javascript.JMacro
+import           Options.Applicative (execParser)
+import           System.Exit (die)
+import           System.IO (IOMode (..), hPutStr, withFile)
+import           Text.RawString.QQ (r)
+import           Text.Regex.PCRE.Light (Regex, compile, match)
 
-import Data.Text.I18n.Po (parsePo)
-import Data.Text.I18n.Shakespeare (decode)
-import Data.Text.I18n.Types (Msgid(..), MsgDec(..))
-import I18n.CLI
+import           Data.Text.I18n.Po (parsePo)
+import qualified Data.Text.I18n.Shakespeare as Shakespeare
+import           Data.Text.I18n.Types (Msgid(..), MsgDec(..))
+import           I18n.CLI
 
 main :: IO ()
 main = execParser cliInfo >>= runCli
@@ -64,7 +64,7 @@ runFind FindOpts { .. } = do
 
     handleOthers :: [String] -> String -> IO [String]
     handleOthers !acc source = do
-      let result = decode (fromMaybe defaultKeyword findKeyword) source
+      let result = Shakespeare.decode (fromMaybe defaultKeyword findKeyword) source
       case result of
         Left err ->
           die err
