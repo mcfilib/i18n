@@ -24,9 +24,6 @@ watch: ## Compile on file changes
 help: ## Print available tasks
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-debug:
-	@rm test.pot; i18n --output test.pot --regex "\#{ _\(\"(.*)\"\) }" test/templates/template.hamlet; cat test.pot
-
 .PHONY:
 	clean
 	debug
