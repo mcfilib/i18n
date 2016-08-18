@@ -23,7 +23,6 @@ library
     hs-source-dirs:    src
     exposed-modules:   Data.Text.I18n
                      , Data.Text.I18n.Po
-                     , Data.Text.I18n.Shakespeare
                      , Data.Text.I18n.Types
     build-depends:     base >= 4.7 && < 5
                      , containers
@@ -31,24 +30,8 @@ library
                      , directory
                      , parsec
                      , mtl
-                     , shakespeare
                      , text
     default-language:  Haskell2010
-
-executable i18n
-  hs-source-dirs:      app
-  main-is:             Main.hs
-  other-modules:       I18n.CLI
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base
-                     , containers
-                     , i18n
-                     , jmacro
-                     , optparse-applicative
-                     , pcre-light
-                     , raw-strings-qq
-                     , string-conv
-  default-language:    Haskell2010
 
 test-suite i18n-test
   type:                exitcode-stdio-1.0

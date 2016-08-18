@@ -1,2 +1,0 @@
-<p .blade-runner>
-  #{ _("I've seen things you people wouldn't believe.") }

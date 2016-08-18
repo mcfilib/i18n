@@ -3,9 +3,6 @@ system-ghc: false
 install-ghc: true
 packages:
 - '.'
-- location:
-    git: git@github.com:filib/shakespeare.git
-    commit: "HEAD"
 extra-deps:
   - string-conv-0.1.1
 flags: {}

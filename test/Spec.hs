@@ -1,16 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import           Data.Text.I18n
-import           Data.Text.I18n.Po
-import           Data.Text.I18n.Shakespeare
-import           Test.Tasty
-import           Test.Tasty.Hspec
+import Data.Text.I18n
+import Data.Text.I18n.Po
+import Test.Tasty
+import Test.Tasty.Hspec
 
 main :: IO ()
 main = do
   a <- testSpec "Library Specs" librarySpecs
-  b <- testSpec "Application Specs" applicationSpecs
-  defaultMain (tests $ testGroup "All specs" [a, b])
+  defaultMain (tests $ testGroup "All specs" [a])
 
 tests :: TestTree -> TestTree
 tests specs = testGroup "i18n Tests" [specs]
@@ -44,26 +42,4 @@ librarySpecs = describe "localize" $ do
         (l10n, _) <- getL10n localeDir
         let subject = localize l10n (Locale "fr") (gettext "Like tears in rain.")
         let result = "Like tears in rain."
-        subject `shouldBe` result
-
-applicationSpecs :: Spec
-applicationSpecs = describe "Shakespeare parser" $
-  describe "decode" $ do
-    context "when the file contains some translations" $ do
-      it "should be able to find them" $ do
-        template <- readFile "test/templates/template.hamlet"
-        let subject = decode "_" template
-        let result = Right ["Hello there, %s.", "Hello there, %s.", "hello from me"]
-        subject `shouldBe` result
-      it "should leave decision of what to do with duplicates up to consumers" $ do
-        template <- readFile "test/templates/template_with_dupes.hamlet"
-        let subject = decode "_" template
-        let result = Right ["Getting Started", "Getting Started"]
-        subject `shouldBe` result
-
-    context "when the file does not contain some translations" $
-      it "should not find them" $ do
-        template <- readFile "test/templates/template.hamlet"
-        let subject = decode "gettext" template
-        let result = Right mempty
         subject `shouldBe` result
