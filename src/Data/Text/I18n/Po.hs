@@ -23,22 +23,23 @@ module Data.Text.I18n.Po (
     parsePo,
     ) where
 
-import           Control.Arrow                          (second, (&&&))
-import           Data.Either                            (partitionEithers)
-import           Data.Functor.Identity                  (Identity)
-import           Data.List                              (foldl', intercalate,
-                                                         isSuffixOf)
-import qualified Data.Map                               as Map
-import qualified Data.Text                              as T
-import           Data.Text.I18n
-import           Data.Text.I18n.Types
-import qualified Data.Text.IO                           as T
-import           System.Directory                       (getDirectoryContents)
-import           System.FilePath                        (pathSeparator)
+import           Control.Applicative ((<$>))
+import           Control.Arrow (second, (&&&))
+import           Data.Either (partitionEithers)
+import           Data.Functor.Identity (Identity)
+import           Data.List (foldl', intercalate, isSuffixOf)
+import qualified Data.Map as Map
+import           Data.Monoid (mconcat, mempty)
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import           System.Directory (getDirectoryContents)
+import           System.FilePath (pathSeparator)
 import           Text.Parsec
 import           Text.Parsec.Text
 import           Text.ParserCombinators.Parsec.Language
-import qualified Text.ParserCombinators.Parsec.Token    as P
+import qualified Text.ParserCombinators.Parsec.Token as P
+
+import           Data.Text.I18n
 
 -- External functions
 
