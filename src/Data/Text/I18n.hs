@@ -69,7 +69,7 @@ localize l10n loc expression = runIdentity $ runReaderT expression (loc, l10n, N
 --
 -- Examples:
 --
--- >>> let example2 = I18n.withContext (Just "Attack ships on fire off the shoulder of Orion.") example
+-- >>> let example2 = I18n.withContext (Just (Context "Attack ships on fire off the shoulder of Orion.")) example
 -- >>> I18n.localize l10n (I18n.Locale "cym") example2
 -- "Fel dagrau yn y glaw."
 withContext :: Maybe Context -- ^ Context to use
@@ -100,6 +100,6 @@ localizeMsgid l10n loc ctxt msgid = do
   contextual <- Map.lookup ctxt local'
   msgstrs <- Map.lookup msgid contextual
   case listToMaybe msgstrs of
-    Nothing     -> Nothing
-    Just ""     -> Nothing
-    Just msgstr -> Just msgstr
+    Nothing              -> Nothing
+    Just (Msgstr "")     -> Nothing
+    Just (Msgstr msgstr) -> Just msgstr

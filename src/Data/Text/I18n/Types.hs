@@ -10,14 +10,14 @@
 
 module Data.Text.I18n.Types (
     -- * Type Declarations
-    Context,
+    Context(..),
     CtxMap,
     I18n,
     L10n,
     Locale(..),
     MsgDec(..),
     Msgid(..),
-    Msgstr,
+    Msgstr(..),
     ) where
 
 import           Control.Monad.Identity (Identity)
@@ -29,7 +29,8 @@ import qualified Data.Text              as T
 -- >>> :set -XOverloadedStrings
 --
 -- | Local context.
-type Context = T.Text
+newtype Context = Context T.Text
+  deriving (Eq, Ord)
 
 -- | Mapping from a contexts to translation mappings.
 type CtxMap = Map.Map (Maybe Context) TranslationMap
@@ -56,7 +57,7 @@ newtype Msgid = Msgid T.Text
   deriving (Show, Eq, Ord)
 
 -- | Translated string.
-type Msgstr = T.Text
+newtype Msgstr = Msgstr T.Text
 
 -- | Mapping from identifiers to translations.
 type TranslationMap = Map.Map Msgid [Msgstr]

@@ -168,7 +168,7 @@ msgContext :: Parser (Maybe Context)
 msgContext = try $ option Nothing $ do
   _ <- lexeme (reserved "msgctxt")
   strs <- many1 str
-  return (Just $! mconcat strs)
+  return (Just (Context $! mconcat strs))
 
 msgSingular :: Parser (Msgid, [Msgstr])
 msgSingular = do
@@ -193,13 +193,13 @@ msgidPlural :: Parser Msgstr
 msgidPlural = do
   _ <- lexeme (reserved "msgid_plural")
   strs <- many1 str
-  return $! mconcat strs
+  return $ Msgstr $! mconcat strs
 
 msgstr :: Parser Msgstr
 msgstr = do
   _ <- lexeme (reserved "msgstr")
   strs <- many1 str
-  return $! mconcat strs
+  return $ Msgstr $! mconcat strs
 
 msgstrPlural :: Parser Msgstr
 msgstrPlural = do
@@ -209,7 +209,7 @@ msgstrPlural = do
   _ <- char ']'
   _ <- whiteSpace
   strs <- many1 str
-  return $! mconcat strs
+  return $ Msgstr $! mconcat strs
 
   where
     caseN :: Parser String
