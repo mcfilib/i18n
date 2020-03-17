@@ -2,11 +2,10 @@ resolver: lts-3.14
 system-ghc: false
 install-ghc: true
 packages:
-- '.'
-- location:
-    git: git@github.com:filib/shakespeare.git
-    commit: "HEAD"
+- .
 extra-deps:
   - string-conv-0.1.1
+  - git: git@github.com:mcfilib/shakespeare.git
+    commit: 018df3af6cadf0ffae6f94fc9bc16cb8b8fd5e1e
 flags: {}
 extra-package-dbs: []
